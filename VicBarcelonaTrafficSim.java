@@ -73,14 +73,12 @@ public class VicBarcelonaTrafficSim extends JPanel {
     JLabel lAdv;
 
     // ── Panel educativo inferior (Swing, no Graphics2D) ───────────────────
-    // Se crea en buildCtrl y se pasa al simulador para que buildCtrl pueda montarlo
-    // en el BorderLayout del panel izquierdo
     JTextPane eduPane;
 
     // ── Constructor ───────────────────────────────────────────────────────
     public VicBarcelonaTrafficSim() {
         setBackground(new Color(30, 32, 40));
-        setPreferredSize(new Dimension(1100, 430));
+        setPreferredSize(new Dimension(1100, 430)); // Altura ajustada
         lights.add(new Light(X_GRANOLLERS - 5, "Pre-Granollers", 5000, 3500));
         lights.add(new Light(E_CENTELLES + 3, "Centelles", 6000, 2500));
     }
@@ -236,16 +234,13 @@ public class VicBarcelonaTrafficSim extends JPanel {
     }
 
     // ── Panel educativo: actualiza el JTextPane inferior ──────────────────
-    // Cada entrada tiene: titulo, concepto_hilo, si_subes, si_bajas, codigo_java
     void explainAction(String param, int value) {
         if (eduPane == null) return;
 
-        // Determinar contenido segun parametro
         String titulo, queEs, siSubes, siBajas, codigoJava;
         Color accentColor;
 
         switch (param) {
-            // ── PRODUCTORES ───────────────────────────────────────────────
             case "vic":
                 titulo     = "Entrada Vic  —  PRODUCTOR de threads";
                 accentColor = new Color(70, 200, 120);
@@ -274,7 +269,6 @@ public class VicBarcelonaTrafficSim extends JPanel {
                 codigoJava = "// Dos productores independientes:\nExecutorService prod = Executors.newFixedThreadPool(2);\nprod.submit(() -> { while(true) cola.put(tareaVic()); });\nprod.submit(() -> { while(true) cola.put(tareaCen()); });";
                 break;
 
-            // ── CONSUMIDORES ──────────────────────────────────────────────
             case "bcn":
                 titulo     = "Salida Barcelona  —  CONSUMIDOR principal (ThreadPoolExecutor)";
                 accentColor = new Color(220, 80, 75);
@@ -291,38 +285,36 @@ public class VicBarcelonaTrafficSim extends JPanel {
                            + "cuando la cola del pool se llena.";
                 codigoJava = "ThreadPoolExecutor bcn = new ThreadPoolExecutor(\n    " + Math.max(1,value/10) + ",  // corePoolSize\n    " + Math.max(2,value/5) + ",  // maxPoolSize\n    60L, TimeUnit.SECONDS,\n    new LinkedBlockingQueue<>(1000)\n);";
                 break;
-            case "gran":
-                titulo     = "Salida Granollers  —  CONSUMIDOR secundario con backpressure";
+            case "gran": // ACTUALIZADO CON TEXTO EN LENGUAJE NATURAL
+                titulo     = "Salida Granollers  —  Efecto Embotellamiento (Backpressure)";
                 accentColor = new Color(230, 160, 50);
-                queEs      = "Granollers es la salida alternativa para los threads que pasan por la rotonda (seccion critica). "
-                           + "Representa un segundo worker pool o un canal de procesamiento alternativo. "
-                           + "La rotonda actua como buffer (cola acotada) entre el flujo y esta salida: "
-                           + "si la rotonda esta llena, los threads esperan antes de entrar (backpressure).";
-                siSubes    = "La rotonda se vacia mas rapido. Menos cola de espera ante la seccion critica. "
+                queEs      = "Si esta salida es muy lenta, los coches se amontonan dentro de la rotonda. "
+                           + "Al llenarse, los coches que vienen de lejos se ven obligados a frenar. "
+                           + "Es un mecanismo de defensa automatico: el atasco avisa 'hacia atras' de que no cabe nadie mas, "
+                           + "evitando que todo el sistema colapse de golpe.";
+                siSubes    = "La rotonda se vacia mas rapido. Menos cola de espera. "
                            + "Con " + value + "/min en Granollers, "
-                           + (value > exitBcn ? "esta salida es AHORA MAS RAPIDA que Barcelona." : "Barcelona sigue siendo la salida principal.");
+                           + (value > exitBcn ? "esta salida absorbe mas que Barcelona." : "Barcelona sigue siendo la salida principal.");
                 siBajas    = "La rotonda se llena. Los coches forman cola esperando entrar. "
-                           + "Esto simula un consumidor saturado: el backpressure frena al productor. "
-                           + "Es el mecanismo por el que un sistema bien disenado evita el desbordamiento.";
+                           + "Esto simula un consumidor saturado: el backpressure frena a los que entran.";
                 codigoJava = "// Cola acotada = backpressure automatico:\nBlockingQueue<Tarea> rotonda = new ArrayBlockingQueue<>(" + rabCap + ");\n// Si llena, put() bloquea al productor\nrotonda.put(tarea);  // backpressure aqui\n// Consumidor Granollers:\nTarea t = rotonda.take();  // bloquea si vacia";
                 break;
 
-            // ── SECCION CRITICA ───────────────────────────────────────────
-            case "rabcap":
-                titulo     = "Capacidad Rotonda  —  Semaphore(" + value + ")  /  seccion critica";
+            case "rabcap": // ACTUALIZADO CON TEXTO EN LENGUAJE NATURAL
+                titulo     = "Rotonda  —  Control de aforo (Maximo " + value + " coches)";
                 accentColor = new Color(190, 140, 255);
-                queEs      = "La capacidad de la rotonda equivale al parametro N de un Semaphore(N). "
-                           + "Define cuantos threads pueden estar DENTRO de la seccion critica simultaneamente. "
-                           + "Con N=1 es un mutex puro (solo 1 thread a la vez). "
-                           + "Con N grande hay mas paralelismo pero mas complejidad de sincronizacion.";
-                siSubes    = "Mas threads pueden estar en la seccion critica a la vez. "
-                           + "La cola de espera ante la rotonda desaparece o se reduce mucho. "
-                           + "Con " + value + " plazas y " + pctExit + "% de threads desviados, "
-                           + (value >= 10 ? "la contention sera minima." : "puede haber algo de espera.");
-                siBajas    = "Mas serializacion: los threads hacen cola para entrar. "
-                           + "Con valor 1 (mutex), es el peor caso de contention: un hilo bloquea a todos los demas. "
+                queEs      = "Funciona como la barrera de un parking. Si solo caben " + value + " coches, "
+                           + "el siguiente tiene que esperar fuera hasta que alguien salga. "
+                           + "En programacion, esto evita que demasiadas tareas intenten usar lo mismo a la vez "
+                           + "y provoquen un choque o error en el sistema.";
+                siSubes    = "Mas coches pueden estar en la rotonda a la vez. "
+                           + "La cola de espera desaparece o se reduce mucho. "
+                           + "Con " + value + " plazas y " + pctExit + "% de desvio, "
+                           + (value >= 10 ? "el flujo sera muy agil." : "puede haber algo de espera.");
+                siBajas    = "El paso se vuelve mas estricto. "
+                           + "Con valor 1, es como un puente de un solo carril: solo pasa uno a la vez. "
                            + "Veras la cola crecer visualmente ante la rotonda.";
-                codigoJava = "Semaphore sem = new Semaphore(" + value + ");\n// Thread quiere entrar a la seccion critica:\nsem.acquire();    // bloquea si sem == 0\ntry {\n    hacerTrabajoCritico();\n} finally {\n    sem.release(); // libera plaza\n}";
+                codigoJava = "Semaphore sem = new Semaphore(" + value + ");\n// Coche quiere entrar a la rotonda:\nsem.acquire();    // bloquea si esta llena\ntry {\n    cruzarRotonda();\n} finally {\n    sem.release(); // sale y libera plaza\n}";
                 break;
             case "rabexit":
                 titulo     = "Velocidad salida rotonda  —  duracion del trabajo DENTRO del lock";
@@ -357,7 +349,6 @@ public class VicBarcelonaTrafficSim extends JPanel {
                 codigoJava = "// Solo el " + value + "% de tareas necesitan recurso compartido:\nif (Math.random() < " + String.format("%.2f", value / 100.0) + ") {\n    synchronized(recursoCompartido) {\n        leer_o_escribir();\n    }\n}\n// El resto ejecuta sin lock (mas rapido)";
                 break;
 
-            // ── LOCKS EXPLICITOS ──────────────────────────────────────────
             case "rab":
                 titulo     = value == 1 ? "Rotonda ACTIVADA  —  seccion critica synchronized" : "Rotonda DESACTIVADA  —  sin seccion critica";
                 accentColor = new Color(190, 140, 255);
@@ -401,7 +392,6 @@ public class VicBarcelonaTrafficSim extends JPanel {
                     : "// Sin lock explicito:\npaso(); // directo, sin overhead\n// Mas rapido pero sin garantias de orden";
                 break;
 
-            // ── FISICA ────────────────────────────────────────────────────
             case "gap":
                 titulo     = "Distancia minima  —  tiempo de CPU por thread (Thread.sleep)";
                 accentColor = new Color(255, 190, 70);
@@ -886,43 +876,39 @@ public class VicBarcelonaTrafficSim extends JPanel {
         addRow(scrollContent, row, accentLine(new Color(40, 60, 100)));
 
         // Escenarios
-        addRow(scrollContent, row, sectionHeader("ESCENARIOS", "Progresion didactica: de fluido a caos total", new Color(80, 200, 130)));
-        addRow(scrollContent, row, presetCard("1  FLUIDO — Sin contencion",
-            "Productores y consumidores equilibrados. Threads circulan sin esperar.",
-            new Color(28,55,35), new Color(40,180,80), () -> {
-                sim.entryVic=20; sim.entryCen=10; sim.exitGran=20; sim.exitBcn=30;
-                sim.rabCap=15; sim.rabExit=20; sim.pctExit=30; sim.lightsOn=false; sim.rabOn=true;
-                syncSliders(sim);
-            }));
-        addRow(scrollContent, row, presetCard("2  LOCKS — Semaforos activos",
-            "Se activan los Locks. Threads se detienen y esperan turno. Latencia visible.",
-            new Color(50,50,15), new Color(200,190,40), () -> {
-                sim.entryVic=35; sim.entryCen=25; sim.exitGran=18; sim.exitBcn=25;
-                sim.rabCap=12; sim.rabExit=18; sim.pctExit=35; sim.lightsOn=true; sim.rabOn=true;
-                syncSliders(sim);
-            }));
-        addRow(scrollContent, row, presetCard("3  CONTENCION — Rotonda saturada",
-            "Seccion critica con poca capacidad. Threads en cola esperando el mutex.",
+        addRow(scrollContent, row, sectionHeader("RETOS INTERACTIVOS", "Provoca un error de hilos y arreglalo", new Color(80, 200, 130)));
+
+        addRow(scrollContent, row, presetCard("1. Reto: El Cuello de Botella",
+            "Problema: Capacidad de rotonda a 1 (Mutex). Solo pasa 1 coche. Solución: Sube 'Capacidad' a 15 para permitir paralelismo.",
             new Color(55,35,10), new Color(220,140,30), () -> {
-                sim.entryVic=70; sim.entryCen=50; sim.exitGran=8; sim.exitBcn=30;
-                sim.rabCap=3; sim.rabExit=6; sim.pctExit=50; sim.lightsOn=true; sim.rabOn=true;
+                sim.entryVic=60; sim.entryCen=40; sim.exitGran=30; sim.exitBcn=60;
+                sim.rabCap=1; sim.rabExit=20; sim.pctExit=40; sim.lightsOn=false; sim.rabOn=true;
                 syncSliders(sim);
             }));
-        addRow(scrollContent, row, presetCard("4  PRODUCTOR > CONSUMIDOR",
-            "Entran mas threads de los que salen. La cola crece hasta el colapso.",
+
+        addRow(scrollContent, row, presetCard("2. Reto: Servidor Saturado",
+            "Problema: El Pool principal (Barcelona) procesa muy lento y la cola crece. Solución: Sube la salida de 'Barcelona' a 80.",
             new Color(60,25,20), new Color(220,70,50), () -> {
-                sim.entryVic=80; sim.entryCen=60; sim.exitBcn=8; sim.exitGran=10;
-                sim.rabCap=8; sim.rabExit=10; sim.pctExit=40; sim.lightsOn=true; sim.rabOn=true;
+                sim.entryVic=80; sim.entryCen=40; sim.exitBcn=10; sim.exitGran=20;
+                sim.rabCap=15; sim.rabExit=20; sim.pctExit=20; sim.lightsOn=false; sim.rabOn=true;
                 syncSliders(sim);
             }));
-        addRow(scrollContent, row, presetCard("5  DEADLOCK — Caos total",
-            "Todo saturado: rotonda minima, salidas colapsadas, entradas al maximo.",
-            new Color(55,15,15), new Color(200,40,40), () -> {
-                sim.entryVic=130; sim.entryCen=100; sim.exitBcn=3; sim.exitGran=3;
-                sim.rabCap=2; sim.rabExit=3; sim.pctExit=60; sim.lightsOn=true; sim.rabOn=true;
+
+        addRow(scrollContent, row, presetCard("3. Reto: Operacion lenta en Lock",
+            "Problema: Entrar a la rotonda es rapido, pero salir tarda mucho (I/O lento). Solución: Sube 'Vel. proceso' a 40.",
+            new Color(40,15,45), new Color(190,80,220), () -> {
+                sim.entryVic=50; sim.entryCen=30; sim.exitBcn=50; sim.exitGran=30;
+                sim.rabCap=20; sim.rabExit=2; sim.pctExit=60; sim.lightsOn=false; sim.rabOn=true;
                 syncSliders(sim);
             }));
-        addRow(scrollContent, row, vSpacer(8));
+
+        addRow(scrollContent, row, presetCard("4. Reto: Exceso de recurso compartido",
+            "Problema: Casi todos los hilos intentan usar la rotonda a la vez. Solución: Baja '% desviados' a 20 para evitar la contención.",
+            new Color(15,40,55), new Color(40,150,220), () -> {
+                sim.entryVic=50; sim.entryCen=30; sim.exitBcn=50; sim.exitGran=30;
+                sim.rabCap=5; sim.rabExit=15; sim.pctExit=95; sim.lightsOn=false; sim.rabOn=true;
+                syncSliders(sim);
+            }));
 
         // Tutor en vivo (solo diagnostico de atasco, breve)
         addRow(scrollContent, row, sectionHeader("Explicacion en vivo", "Estado del sistema en tiempo real", new Color(120, 170, 255)));
@@ -1141,6 +1127,11 @@ public class VicBarcelonaTrafficSim extends JPanel {
         JLabel vl = new JLabel(String.valueOf(val)); vl.setForeground(accent); vl.setFont(new Font("Consolas",Font.BOLD,13));
         vl.setPreferredSize(new Dimension(40,20)); vl.setHorizontalAlignment(SwingConstants.RIGHT);
         s.addChangeListener(e -> { int v=s.getValue(); vl.setText(""+v); onChange.accept(v); });
+        s.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) {
+                onChange.accept(s.getValue());
+            }
+        });
         c=new GridBagConstraints(); c.gridx=2; c.gridy=rowIdx; c.insets=new Insets(3,0,3,0); c.anchor=GridBagConstraints.EAST; p.add(vl,c);
         return s;
     }
